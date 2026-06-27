@@ -128,10 +128,14 @@ prospect. Step copy references them as `{{SNIPPET1}}`, `{{FIRST_NAME}}`, etc. So
 write the step copy once in the campaign, then pass per-prospect snippet values
 when adding prospects.
 
+## Booking links / CTA in outreach
+
+- interested / "let's talk" → **30-min discovery** (default); short/follow-up →
+  **15-min**; unsure → **flexible Zoom**.
+
 ## Creating a campaign (verified schema)
 
 `campaigns create --body-file` builds a DRAFT. Verified body shape:
-- `name` — use a consistent campaign naming convention (e.g. `<stage>-<offer>-<segment>-<geo>-<date>`) so campaigns stay sortable.
 - `email_account_ids` — **attach ALL sending mailboxes, not one.** List the sending
   (SMTP) ids (`woodpecker mailboxes list`; the domain-rotation set — e.g. .net/.co/
   .org/.us/.xyz/.co.uk — each has a paired IMAP id you skip). More senders = better
@@ -210,6 +214,15 @@ deliverable **before** enrolling; bounces wreck the sending-domain reputation.
 > email-validator today. Verify emails with your normal verification step before
 > enrolling, and rely on the send-time `prospect_invalid`/`prospect_bounced` events
 > for the authoritative bounce signal.
+
+**How the built-in validation actually behaves (verified live 2026-06-27):** it's
+**Bouncer**, native + free, and runs **at send time inside a *running* campaign** — NOT
+on add/import. A bad address flips to `INVALID` (caught pre-send, **no email sent**) or,
+if the provider accepts-then-bounces (e.g. O365), it sends and flips to `BOUNCED`. It is
+best-effort/domain-dependent, so keep verifying before enrolling. **Gotcha:** `INVALID`
+is a **campaign-local** status — it does NOT appear in the global
+`prospects list --status INVALID` (that still shows ACTIVE); read it per campaign with
+`prospects list-campaign <id> --status INVALID`.
 
 ## Webhooks — real-time events (replies, interest, opt-outs → automation)
 

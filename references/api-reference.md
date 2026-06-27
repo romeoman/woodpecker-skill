@@ -75,8 +75,8 @@ Docs: `/docs/inbox/...`.
 | Add mailbox(es) (manual connect) | `POST /v2/mailboxes` | `mailboxes add-bulk` | wizard / bulk manual connection |
 | Update mailbox footer | `PATCH /v2/mailboxes/{id}` | `mailboxes update <id>` | SMTP mailbox footer/signature |
 | Get connection batch summary | `GET /v2/mailboxes/batch/{batchId}` | `mailboxes get-batch-summary <batchId>` | status of a manual-connection batch |
-| **Microsoft** add credentials | `POST /v2/mailboxes/microsoft/credentials` | `raw` | OAuth app credentials for M365 |
-| Microsoft get credentials | `GET /v2/mailboxes/microsoft/credentials` | `raw` | |
+| **Microsoft** add credentials | `POST /v2/mailboxes/microsoft/credentials` ✓ | `raw` | OAuth app creds for M365; body needs `tenantId` (+ client id/secret) — 422 "Missing tenantId" without it |
+| Microsoft get credentials | `GET /v2/mailboxes/microsoft/credentials` ✓ | `raw` | → `{credentials}` |
 | Microsoft update credentials | `PATCH /v2/mailboxes/microsoft/credentials` | `raw` | |
 | Microsoft delete credentials | `DELETE /v2/mailboxes/microsoft/credentials` | `raw` | |
 | Microsoft add mailbox | `POST /v2/mailboxes/microsoft` | `raw` | connect a Microsoft 365 mailbox |
