@@ -128,11 +128,6 @@ prospect. Step copy references them as `{{SNIPPET1}}`, `{{FIRST_NAME}}`, etc. So
 write the step copy once in the campaign, then pass per-prospect snippet values
 when adding prospects.
 
-## Booking links / CTA in outreach
-
-- interested / "let's talk" → **30-min discovery** (default); short/follow-up →
-  **15-min**; unsure → **flexible Zoom**.
-
 ## Creating a campaign (verified schema)
 
 `campaigns create --body-file` builds a DRAFT. Verified body shape:
