@@ -26,24 +26,24 @@ no account list is given, ask for / assume the target account list first.
 
 ## Command map
 
-| Need | Command |
-| --- | --- |
-| Account / sending identity | `woodpecker me`, `woodpecker mailboxes list` |
-| List / inspect campaigns | `woodpecker campaigns list`, `woodpecker campaigns get <id>` |
-| Create campaign (content + steps) | `woodpecker campaigns create --body-file payload.json` |
-| Add prospects (with snippets) | `woodpecker prospects add-to-campaign <id> --body-file prospects.json --send-after <ISO>` |
-| Create prospect record | `woodpecker prospects create --body-file p.json` |
-| Start / pause / stop | `woodpecker campaigns run|pause|stop <id>` |
-| Replies | `woodpecker inbox ...`, `woodpecker prospects responses <prospectId>` |
-| List / search prospects | `woodpecker prospects list`, `prospects search`, `prospects list-campaign <ids>` |
-| Update prospects in campaign | `woodpecker prospects update-prospects-campaign <id> --body-file …` |
-| Stats / reports | `woodpecker reports ...` |
-| Webhooks (reply/open events → automation) | `woodpecker webhooks list|create|delete ...` |
-| Blacklist (suppress emails/domains) | `woodpecker blacklist list|add|delete ...` |
-| Users / team | `woodpecker users ...` |
-| Agency (sub-accounts) | `woodpecker agency ...` |
-| Config / key | `woodpecker config show`, `woodpecker login <key>` (env `WOODPECKER_API_KEY` preferred) |
-| Anything unwrapped | `woodpecker raw request --method GET --path /v2/campaigns/<id>` |
+| Need                                      | Command                                                                                   |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Account / sending identity                | `woodpecker me`, `woodpecker mailboxes list`                                              |
+| List / inspect campaigns                  | `woodpecker campaigns list`, `woodpecker campaigns get <id>`                              |
+| Create campaign (content + steps)         | `woodpecker campaigns create --body-file payload.json`                                    |
+| Add prospects (with snippets)             | `woodpecker prospects add-to-campaign <id> --body-file prospects.json --send-after <ISO>` |
+| Create prospect record                    | `woodpecker prospects create --body-file p.json`                                          |
+| Start / pause / stop                      | `woodpecker campaigns run                                                                 | pause  | stop <id>`  |
+| Replies                                   | `woodpecker inbox ...`, `woodpecker prospects responses <prospectId>`                     |
+| List / search prospects                   | `woodpecker prospects list`, `prospects search`, `prospects list-campaign <ids>`          |
+| Update prospects in campaign              | `woodpecker prospects update-prospects-campaign <id> --body-file …`                       |
+| Stats / reports                           | `woodpecker reports ...`                                                                  |
+| Webhooks (reply/open events → automation) | `woodpecker webhooks list                                                                 | create | delete ...` |
+| Blacklist (suppress emails/domains)       | `woodpecker blacklist list                                                                | add    | delete ...` |
+| Users / team                              | `woodpecker users ...`                                                                    |
+| Agency (sub-accounts)                     | `woodpecker agency ...`                                                                   |
+| Config / key                              | `woodpecker config show`, `woodpecker login <key>` (env `WOODPECKER_API_KEY` preferred)   |
+| Anything unwrapped                        | `woodpecker raw request --method GET --path /v2/campaigns/<id>`                           |
 
 Command groups: `campaigns · prospects · inbox · mailboxes · manual-tasks ·
 linkedin · users · reports · webhooks · agency · blacklist · raw`. Use `--json`
@@ -96,41 +96,98 @@ python $LF --enrich-emails jane@acme.com,john@acme.com
 Endpoints (base `https://api.woodpecker.co/rest/v2`, header `x-api-key`; via CLI use
 `raw request --path /v2/lead_finder/...`):
 
-| Op | Method · path | Notes |
-| --- | --- | --- |
-| Search criteria catalog | `GET /lead_finder/search_criteria` | freetext (CITY, COMPANY_NAME, COMPANY_WEBSITE, FIRST/LAST_NAME) + enumerated (INDUSTRY, CURRENT/PAST_JOB_TITLE, COUNTRY, JOB_TITLE_LEVEL, JOB_TITLE_ROLE, COMPANY_SIZE/COUNTRY/TYPE, …). **Free.** |
-| Criteria values | `GET /lead_finder/search_criteria/{NAME}/values?search_phrase=&page=&limit=` | allowed enum values. **Free.** |
-| Search leads | `POST /lead_finder/leads` | body below. Returns `{leads:[{uid,…}], total_found, next_page}`. **1 credit/lead.** |
-| Queue lead enrichment | `POST /lead_finder/leads/enrichments` | `{"leads":[{"uid":"…"}]}` → `{uuid,status}`. **1.5 credits/found.** |
-| Get / list lead enrichment | `GET /lead_finder/leads/enrichments[/{uuid}]` | poll the uuid until each record is terminal. Free. |
-| Queue prospect enrichment | `POST /lead_finder/prospects/enrichments` | `{"prospects":[{"email":"…","first_name":…,"last_name":…,"linkedin_url":…,"company_name":…,"website":…}]}` → `{uuid}`. |
-| Query / get prospect enrichment | `POST /lead_finder/prospects/enrichments/statuses/query` · `GET /lead_finder/prospects/enrichments/{uuid}` | status / results. |
+| Op                              | Method · path                                                                                              | Notes                                                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search criteria catalog         | `GET /lead_finder/search_criteria`                                                                         | freetext (CITY, COMPANY_NAME, COMPANY_WEBSITE, FIRST/LAST_NAME) + enumerated (INDUSTRY, CURRENT/PAST_JOB_TITLE, COUNTRY, JOB_TITLE_LEVEL, JOB_TITLE_ROLE, COMPANY_SIZE/COUNTRY/TYPE, …). **Free.** |
+| Criteria values                 | `GET /lead_finder/search_criteria/{NAME}/values?search_phrase=&page=&limit=`                               | allowed enum values. **Free.**                                                                                                                                                                     |
+| Search leads                    | `POST /lead_finder/leads`                                                                                  | body below. Returns `{leads:[{uid,…}], total_found, next_page}`. **1 credit/lead.**                                                                                                                |
+| Queue lead enrichment           | `POST /lead_finder/leads/enrichments`                                                                      | `{"leads":[{"uid":"…"}]}` → `{uuid,status}`. **1.5 credits/found.**                                                                                                                                |
+| Get / list lead enrichment      | `GET /lead_finder/leads/enrichments[/{uuid}]`                                                              | poll the uuid until each record is terminal. Free.                                                                                                                                                 |
+| Queue prospect enrichment       | `POST /lead_finder/prospects/enrichments`                                                                  | `{"prospects":[{"email":"…","first_name":…,"last_name":…,"linkedin_url":…,"company_name":…,"website":…}]}` → `{uuid}`.                                                                             |
+| Query / get prospect enrichment | `POST /lead_finder/prospects/enrichments/statuses/query` · `GET /lead_finder/prospects/enrichments/{uuid}` | status / results.                                                                                                                                                                                  |
 
 **Search body shape (verified):**
+
 ```json
-{"search_criteria":[{"name":"COMPANY_WEBSITE","operator":"INCLUDE","value":"example.com"},
-                    {"name":"JOB_TITLE_LEVEL","operator":"INCLUDE","value":"cxo"}],
- "size":25, "next_page":"<cursor from previous response>"}
+{
+  "search_criteria": [
+    { "name": "COMPANY_WEBSITE", "operator": "INCLUDE", "value": "example.com" },
+    { "name": "JOB_TITLE_LEVEL", "operator": "INCLUDE", "value": "cxo" }
+  ],
+  "size": 25,
+  "next_page": "<cursor from previous response>"
+}
 ```
+
 - `search_criteria` is an **array** of `{name, operator, value}`. `operator` is
   `INCLUDE` or `EXCLUDE`. `value` is a **single string** — repeat the criterion to
   OR several values. `size` = page size; paginate with the returned `next_page` cursor.
 - A lead record: `uid, full_name, first_name, last_name, linkedin_url, company_name,
-  company_website, industry, job_title, job_title_role, job_title_levels, country, city`.
+company_website, industry, job_title, job_title_role, job_title_levels, country, city`.
 - **Credits:** searching/retrieving leads = 1 credit/lead; enrichment = 1.5 credits
   when an email is found; reading criteria/values/status = free. Keep `size` tight.
 
-## Snippets (personalization)
+## Snippets (personalization) — slot map + verified token syntax
 
-Woodpecker personalizes via **snippet fields** (`snippet1`…`snippetN`, plus
+Woodpecker personalizes via **snippet fields** (`snippet1`…`snippet15`, plus
 `first_name`, `last_name`, `company`, `email`, `title`, etc.) carried on each
-prospect. Step copy references them as `{{SNIPPET1}}`, `{{FIRST_NAME}}`, etc. So:
-write the step copy once in the campaign, then pass per-prospect snippet values
-when adding prospects.
+prospect. Write the step copy once in the campaign, then pass per-prospect
+snippet values when adding prospects.
+
+**Verified live (2026-07-03, draft 1584681):** step copy referencing
+`{{SNIPPET_N | "fallback"}}` (underscore + optional quoted fallback) IS
+accepted by the v2 campaign **create** — the earlier "custom {{SNIPPET1}}
+rejected" finding was the underscore-less form. The fallback string renders
+for prospects whose slot is empty.
+
+**Slot map (the outreach standard — guard §11 in the outreach skills):**
+
+| Slot       | Label         | Content                                             |
+| ---------- | ------------- | --------------------------------------------------- |
+| `snippet1` | `signal`      | captured signal note — REVIEW-ONLY, never in a body |
+| `snippet2` | `observation` | observation note — REVIEW-ONLY, never in a body     |
+| `snippet3` | `line_1`      | SENT email body line 1                              |
+| `snippet4` | `line_2`      | SENT email body line 2                              |
+| `snippet5` | `line_3`      | SENT email body line 3                              |
+| `snippet6` | `cta`         | SENT soft CTA line                                  |
+
+Slots 1-2 are informational context for the reviewer/BD (what we
+personalized on); ONLY slots 3-6 are woven into campaign copy
+(`{{SNIPPET_3..6 | "fallback"}}`). First-class prospect fields (first/last
+name, company, title, email, website, industry, address, city, state,
+country, phone) have their OWN merge tags (`{{FIRST_NAME}}`, `{{COMPANY}}`,
+`{{TITLE}}`, …) — they never consume snippet slots.
+
+The token names (`{{SNIPPET_1}}`…) are FIXED; only the **labels** (column
+names) are renameable — in the Woodpecker web UI settings. There is **no
+labels API** (probed 2026-07-03: `/v1|v2/snippet_labels`, `/v2/custom_fields`
+all 404; `snippet_labels` on the prospect record is read-only) — rename the
+six labels above once in the UI so the columns read meaningfully.
+
+**Gotchas (wet-verified 2026-07-03):** an upsert only touches the keys you
+SEND — an omitted snippet key leaves a stale value from an earlier campaign
+in place, while an explicit `""` CLEARS the slot (so when re-personalizing,
+send all six slots explicitly). Prospect email lookup is
+`GET /v1/prospects?search=email%3D<addr>` — a bare `?email=` param is silently
+IGNORED (returns the whole DB) and `?search=<freetext>` 400s.
+
+## Tags (prospect lists & status) — POLICY
+
+Woodpecker has **no list object** — the prospect database + tags ARE the
+lists. Tags live in ONE space-separated string of `#TOKEN`s on each prospect.
+
+Rules (wet-verified 2026-07-03):
+
+- Upsert tags are **additive** — Woodpecker unions new tags into the existing
+  string server-side; still READ-MERGE-WRITE when updating so intent is
+  explicit. Removing a tag requires writing the reduced string.
+- Opt-out is NEVER a tag: delete the prospect + blacklist the email.
+- Filter by tag: `woodpecker prospects search --tags "#HSLIST_6266"`.
 
 ## Creating a campaign (verified schema)
 
 `campaigns create --body-file` builds a DRAFT. Verified body shape:
+
 - `email_account_ids` — **attach ALL sending mailboxes, not one.** List the sending
   (SMTP) ids (`woodpecker mailboxes list`; the domain-rotation set — e.g. .net/.co/
   .org/.us/.xyz/.co.uk — each has a paired IMAP id you skip). More senders = better
@@ -139,11 +196,15 @@ when adding prospects.
 - `steps` — a node with `type:"START"` whose `followup` is step 1; each step:
   `type:"EMAIL"`, `followup_after:{range:"DAY",value:N}` (**N must be > 0, even step 1**),
   `delivery_time:{WEEKDAY:[{from,to}]}`, `body:{versions:[{version:"A",subject,
-  message(HTML),signature:"NO_SIGNATURE"}]}`, chained via `followup` (last = `null`).
-- **Merge fields:** `{{FIRST_NAME}}`, `{{LAST_NAME}}`, `{{COMPANY}}`, `{{TITLE}}` work.
-  **Custom `{{SNIPPET1}}` is REJECTED by the create validator** ("incorrect snippet/
-  fallback/spintax"). For per-prospect trigger lines either set snippets in the
-  Woodpecker UI, or personalize via standard fields + per-segment copy variants.
+message(HTML),signature:"NO_SIGNATURE"}]}`, chained via `followup` (last = `null`).
+- **Merge fields (each wet-verified against the create validator 2026-07-03):**
+  `{{FIRST_NAME}}`, `{{LAST_NAME}}`, `{{COMPANY}}`, `{{TITLE}}`, `{{CITY}}`,
+  `{{COUNTRY}}`, `{{INDUSTRY}}`, `{{PHONE}}`, `{{EMAIL}}` and
+  `{{SNIPPET_N | "fallback"}}` (underscore form; the historical rejection was
+  the underscore-less `{{SNIPPET1}}`). **`{{WEBSITE}}` is REJECTED** — the
+  website field stores on the record but has no merge tag (use a snippet slot
+  if a URL must appear in copy). First-class fields never consume snippet
+  slots. Set snippet VALUES per prospect at add time (see "Snippets").
 
 ## Authoring a campaign body (legacy reference)
 
@@ -164,6 +225,7 @@ validate with `campaigns get` before adding prospects.
 
 The CLI wraps create/get/list/run/pause/stop/delete; the rest is `raw`/`wp.py`
 (full list in `references/api-reference.md`):
+
 - **Edit a running campaign:** `POST /v2/campaigns/{id}/editable` to unlock, then
   `POST /v2/campaigns/{id}/steps` (add), `PATCH …/steps/{stepId}` /
   `…/steps/{stepId}/versions/{verId}` (edit), `DELETE …/steps/{stepId}`.
@@ -177,13 +239,24 @@ The CLI wraps create/get/list/run/pause/stop/delete; the rest is `raw`/`wp.py`
 
 ## Prospects — add, update, suppress (do-not-contact)
 
-| Need | Command |
-| --- | --- |
-| List in DB / in campaign / search | `woodpecker prospects list`, `prospects list-campaign <ids>`, `prospects search --query <q>` |
-| Add to DB / add to campaign | `prospects create --body-file p.json`, `prospects add-to-campaign <id> --body-file …` |
-| Update in DB / in campaign | `prospects create` (upsert by email), `prospects update-prospects-campaign <id> --body-file …` |
-| Replies for one prospect | `prospects responses <prospectId>` |
-| **Delete / unsubscribe / do-not-contact** | `prospects delete <prospectId>` **and** add to blacklist (below) |
+| Need                                      | Command                                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| List in DB / in campaign / search         | `woodpecker prospects list`, `prospects list-campaign <ids>`, `prospects search --query <q>`   |
+| Add to DB / add to campaign               | `prospects create --body-file p.json`, `prospects add-to-campaign <id> --body-file …`          |
+| Update in DB / in campaign                | `prospects create` (upsert by email), `prospects update-prospects-campaign <id> --body-file …` |
+| Replies for one prospect                  | `prospects responses <prospectId>`                                                             |
+| **Delete / unsubscribe / do-not-contact** | `prospects delete <prospectId>` **and** add to blacklist (below)                               |
+
+**Populate the FULL record when adding** (all wet-verified persisted
+2026-07-03): `email, first_name, last_name, company, title, linkedin_url,
+website, industry, address, city, state, country, tags, snippet1..15`.
+`phone` also exists. **`time_zone` is NOT storable** — the v1 API silently
+drops it; a prospect's timezone must drive the CAMPAIGN `settings.timezone`
+(send windows) instead. Upserts touch ONLY the keys you send: omit a field to
+leave it alone; send `""` to clear it (so never send empty firmographics —
+you would blank UI-entered data — but DO send all six snippet slots when
+re-personalizing). `add_prospects_list` returns the prospect ids:
+`{"prospects":[{"email","id"}]}`.
 
 **Opt-out / "don't contact me" / GDPR erasure:** when a prospect asks to be
 removed, do BOTH — `prospects delete` (removes them from sequences) **and**
@@ -211,7 +284,7 @@ deliverable **before** enrolling; bounces wreck the sending-domain reputation.
 > for the authoritative bounce signal.
 
 **How the built-in validation actually behaves (verified live 2026-06-27):** it's
-**Bouncer**, native + free, and runs **at send time inside a *running* campaign** — NOT
+**Bouncer**, native + free, and runs **at send time inside a _running_ campaign** — NOT
 on add/import. A bad address flips to `INVALID` (caught pre-send, **no email sent**) or,
 if the provider accepts-then-bounces (e.g. O365), it sends and flips to `BOUNCED`. It is
 best-effort/domain-dependent, so keep verifying before enrolling. **Gotcha:** `INVALID`
@@ -236,29 +309,30 @@ python skills/woodpecker/scripts/webhooks.py subscribe prospect_replied https://
 woodpecker webhooks subscribe --event prospect_replied --target-url https://<endpoint>
 woodpecker webhooks unsubscribe --event prospect_replied --target-url https://<endpoint>
 ```
+
 (REST, verified: list `GET /v2/webhooks`; subscribe/unsubscribe
 `POST /v1/webhooks/subscribe|unsubscribe` body `{event, target_url}`.)
 
 **Allowed events** (verified live) and what they mean:
 
-| Event | Meaning | Route to |
-| --- | --- | --- |
-| `prospect_replied` | a prospect replied | **BD + executive assistant (high priority)** |
-| `prospect_interested` | reply classified as interested | **BD + EA — hot lead, act now** |
-| `prospect_maybe_later` | interested but later | BD — nurture / snooze |
-| `prospect_not_interested` | reply classified not interested | BD — close out, suppress |
-| `prospect_autoreplied` | auto-reply (OOO etc.) | BD — pause follow-up |
-| `followup_after_autoreply` | follow-up resumed after auto-reply | log |
-| `secondary_replied` | a second/later reply detected | **BD + EA** |
-| `prospect_opt_out` | unsubscribe / opt-out | **delete + blacklist (do-not-contact)** |
-| `prospect_blacklisted` | prospect was blacklisted | log suppression |
-| `prospect_bounced` / `prospect_invalid` | bounce / invalid address | suppress, fix list hygiene |
-| `email_opened` / `link_clicked` | open / click (if tracked) | engagement signal |
-| `prospect_non_responsive` | no reply after sequence | BD — recycle / re-angle |
-| `campaign_sent` / `campaign_completed` | send / campaign finished | reporting |
-| `prospect_saved` | prospect saved | log |
-| `task_created` / `task_done` / `task_ignored` | manual task lifecycle | EA — task tracking |
-| `linkedin_automation_connection_request_accepted` | LinkedIn connect accepted | BD |
+| Event                                             | Meaning                            | Route to                                     |
+| ------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| `prospect_replied`                                | a prospect replied                 | **BD + executive assistant (high priority)** |
+| `prospect_interested`                             | reply classified as interested     | **BD + EA — hot lead, act now**              |
+| `prospect_maybe_later`                            | interested but later               | BD — nurture / snooze                        |
+| `prospect_not_interested`                         | reply classified not interested    | BD — close out, suppress                     |
+| `prospect_autoreplied`                            | auto-reply (OOO etc.)              | BD — pause follow-up                         |
+| `followup_after_autoreply`                        | follow-up resumed after auto-reply | log                                          |
+| `secondary_replied`                               | a second/later reply detected      | **BD + EA**                                  |
+| `prospect_opt_out`                                | unsubscribe / opt-out              | **delete + blacklist (do-not-contact)**      |
+| `prospect_blacklisted`                            | prospect was blacklisted           | log suppression                              |
+| `prospect_bounced` / `prospect_invalid`           | bounce / invalid address           | suppress, fix list hygiene                   |
+| `email_opened` / `link_clicked`                   | open / click (if tracked)          | engagement signal                            |
+| `prospect_non_responsive`                         | no reply after sequence            | BD — recycle / re-angle                      |
+| `campaign_sent` / `campaign_completed`            | send / campaign finished           | reporting                                    |
+| `prospect_saved`                                  | prospect saved                     | log                                          |
+| `task_created` / `task_done` / `task_ignored`     | manual task lifecycle              | EA — task tracking                           |
+| `linkedin_automation_connection_request_accepted` | LinkedIn connect accepted          | BD                                           |
 
 **The non-negotiable routing:** `prospect_replied`, `prospect_interested`, and
 `secondary_replied` are the ones that drive revenue — they must notify the team

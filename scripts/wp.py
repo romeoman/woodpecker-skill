@@ -8,7 +8,7 @@ Pass paths as /v1/... or /v2/... (see references/api-reference.md for the map).
 Module:
     from wp import wp
     wp("GET", "/v2/campaigns/123")
-    wp("POST", "/v2/blacklist/emails", {"emails":[{"email":"x@y.com"}]})
+    wp("POST", "/v2/blacklist/emails", {"emails":["x@y.com"]})  # FLAT strings (wet-verified)
 
 CLI:
     python wp.py GET /v2/campaigns
