@@ -140,34 +140,48 @@ accepted by the v2 campaign **create** — the earlier "custom {{SNIPPET1}}
 rejected" finding was the underscore-less form. The fallback string renders
 for prospects whose slot is empty.
 
-**Slot map (the outreach standard — guard §11 in the outreach skills):**
+**Slot map (the outreach standard — guard §11 in the outreach skills; the
+canonical source of truth is `SNIPPET_KEYS` in `signal_woodpecker.py`):**
 
-| Slot       | Label         | Content                                             |
-| ---------- | ------------- | --------------------------------------------------- |
-| `snippet1` | `signal`      | captured signal note — REVIEW-ONLY, never in a body |
-| `snippet2` | `observation` | observation note — REVIEW-ONLY, never in a body     |
-| `snippet3` | `line_1`      | SENT email body line 1                              |
-| `snippet4` | `line_2`      | SENT email body line 2                              |
-| `snippet5` | `line_3`      | SENT email body line 3                              |
-| `snippet6` | `cta`         | SENT soft CTA line                                  |
+| Slot        | Label                       | Content                                              |
+| ----------- | --------------------------- | ---------------------------------------------------- |
+| `snippet1`  | `first_signal_we_detected`  | first captured signal — REVIEW-ONLY, never in a body |
+| `snippet2`  | `why_we_reach_out`          | why-we-reach-out note — REVIEW-ONLY, never in a body |
+| `snippet3`  | `email_line_1`              | SENT email body line 1                               |
+| `snippet4`  | `personalization_1`         | SENT personalization line 1                          |
+| `snippet5`  | `personalization_2`         | SENT personalization line 2                          |
+| `snippet6`  | `personalization_3`         | SENT personalization line 3                          |
+| `snippet7`  | `personalization_4`         | SENT personalization line 4 (CTA)                    |
+| `snippet8`  | `second_signal_we_detected` | second captured signal — REVIEW-ONLY                 |
+| `snippet9`  | `third_signal_we_detected`  | third captured signal — REVIEW-ONLY                  |
+| `snippet10` | `why_me`                    | why-me reasoning — REVIEW-ONLY                       |
+| `snippet11` | `why_now`                   | why-now reasoning — REVIEW-ONLY                      |
+| `snippet12` | `why_you`                   | why-you reasoning — REVIEW-ONLY                      |
+| `snippet13` | `snippet_13`                | SENT spare copy slot                                 |
+| `snippet14` | `snippet_14`                | SENT spare copy slot                                 |
+| `snippet15` | `snippet_15`                | SENT spare copy slot                                 |
 
-Slots 1-2 are informational context for the reviewer/BD (what we
-personalized on); ONLY slots 3-6 are woven into campaign copy
-(`{{SNIPPET_3..6 | "fallback"}}`). First-class prospect fields (first/last
-name, company, title, email, website, industry, address, city, state,
-country, phone) have their OWN merge tags (`{{FIRST_NAME}}`, `{{COMPANY}}`,
-`{{TITLE}}`, …) — they never consume snippet slots.
+Slots **1-2 and 8-12** are informational context for the reviewer/BD (what we
+personalized on) — REVIEW-ONLY, validator-rejected in email bodies; ONLY slots
+**3-7 and 13-15** are woven into campaign copy
+(`{{SNIPPET_3 | "fallback"}}` … `{{SNIPPET_7}}`, `{{SNIPPET_13..15}}`).
+First-class prospect fields (first/last name, company, title, email, website,
+industry, address, city, state, country, phone) have their OWN merge tags
+(`{{FIRST_NAME}}`, `{{COMPANY}}`, `{{TITLE}}`, …) — they never consume snippet
+slots.
 
-The token names (`{{SNIPPET_1}}`…) are FIXED; only the **labels** (column
-names) are renameable — in the Woodpecker web UI settings. There is **no
-labels API** (probed 2026-07-03: `/v1|v2/snippet_labels`, `/v2/custom_fields`
-all 404; `snippet_labels` on the prospect record is read-only) — rename the
-six labels above once in the UI so the columns read meaningfully.
+The token names (`{{SNIPPET_1}}`…`{{SNIPPET_15}}`) are FIXED; only the
+**labels** (column names) are renameable — in the Woodpecker web UI settings.
+There is **no labels API** (probed 2026-07-03: `/v1|v2/snippet_labels`,
+`/v2/custom_fields` all 404; `snippet_labels` on the prospect record is
+read-only) — rename the labels above once in the UI so the columns read
+meaningfully.
 
 **Gotchas (wet-verified 2026-07-03):** an upsert only touches the keys you
 SEND — an omitted snippet key leaves a stale value from an earlier campaign
 in place, while an explicit `""` CLEARS the slot (so when re-personalizing,
-send all six slots explicitly). Prospect email lookup is
+send all 15 slots explicitly, using `""` for any you want cleared). Prospect
+email lookup is
 `GET /v1/prospects?search=email%3D<addr>` — a bare `?email=` param is silently
 IGNORED (returns the whole DB) and `?search=<freetext>` 400s.
 
@@ -186,17 +200,85 @@ Rules (wet-verified 2026-07-03):
 
 ## Creating a campaign (verified schema)
 
-`campaigns create --body-file` builds a DRAFT. Verified body shape:
+`campaigns create --body-file` builds a DRAFT. **Before you create, VALIDATE the
+body** — it fail-closes on any missing mandatory setting (GDPR/one-click
+unsubscribe, open-tracking-off) or a subject on a follow-up step:
+
+```bash
+python3 scripts/validate_campaign.py body.json   # exit 0 = OK, exit 1 = fix it first
+```
+
+Verified body shape:
 
 - `email_account_ids` — **attach ALL sending mailboxes, not one.** List the sending
   (SMTP) ids (`woodpecker mailboxes list`; the domain-rotation set — e.g. .net/.co/
   .org/.us/.xyz/.co.uk — each has a paired IMAP id you skip). More senders = better
   deliverability + volume; Woodpecker rotates.
-- `settings` — `{timezone, daily_enroll}`.
+- `settings` — timezone/enrol PLUS the **MANDATORY compliance + deliverability
+  block** (verified live on campaign `SIGNAL-Multichannel-…-2607` / id 1584829,
+  2026-07-07). Every campaign MUST set these — never ship a campaign without them:
+
+  ```jsonc
+  "settings": {
+    "timezone": "Europe/Warsaw",
+    "daily_enroll": 25,
+    "prospect_timezone": false,
+    "gdpr_unsubscribe": true,        // MANDATORY — GDPR-compliant unsubscribe on
+    "list_unsubscribe": true,        // MANDATORY — one-click List-Unsubscribe header on
+    // MANDATORY — disable OPEN tracking (no tracking pixel). The catch-all
+    // "OTHER_PROVIDER" entry covers every provider not named, so all three
+    // together = opens fully disabled for everyone.
+    "open_disabled_list": ["google.com", "outlook.com", "OTHER_PROVIDER"],
+    "count_followup_delay_in_working_days": false
+  }
+  ```
+  Rationale (Romeo, non-negotiable): opens OFF = no pixel (privacy + deliverability);
+  `gdpr_unsubscribe` + `list_unsubscribe` always on. Link-click tracking is a
+  separate toggle — leave it default unless told otherwise; the pixel is the one
+  that must be off.
 - `steps` — a node with `type:"START"` whose `followup` is step 1; each step:
-  `type:"EMAIL"`, `followup_after:{range:"DAY",value:N}` (**N must be > 0, even step 1**),
+  `type:"EMAIL"` (or `type:"LINKEDIN"` for a multichannel touch),
+  `followup_after:{range:"DAY",value:N}` (**N must be > 0, even step 1**),
   `delivery_time:{WEEKDAY:[{from,to}]}`, `body:{versions:[{version:"A",subject,
 message(HTML),signature:"NO_SIGNATURE"}]}`, chained via `followup` (last = `null`).
+  - **SUBJECT threading (MANDATORY):** ONLY the first EMAIL step carries a
+    `subject`; **every follow-up EMAIL step MUST have `subject: null` (blank)** so
+    Woodpecker sends it as a reply IN THE SAME THREAD (not a fresh subject / new
+    thread). Verified on 1584829: step-1 EMAIL subject `"Revenue Signal"`, all
+    later EMAIL steps `subject: null`. LINKEDIN steps carry no subject. A fresh
+    subject on a follow-up is a defect — it breaks threading and reads as a
+    separate cold email.
+- **LinkedIn steps (`type:"LINKEDIN"`) — the sub-action is `body.action_type`**
+  (verified live on 1584829 + docs). A LINKEDIN step's `body` has NO `subject`,
+  NO `signature`, and the STEP has NO `delivery_time`. Shape:
+  ```jsonc
+  "body": {
+    "versions": [{ "version": "A", "message": "<note / DM / empty for a visit>" }],
+    "linkedin_account_id": 225,          // the connected LinkedIn seat (integer) — REQUIRED
+    "action_type": "CONNECTION_REQUEST"  // VISIT_PROFILE | CONNECTION_REQUEST | DIRECT_MESSAGE | INMAIL_MESSAGE
+  }
+  ```
+  - `VISIT_PROFILE` — profile visit, `message: ""` (empty).
+  - `CONNECTION_REQUEST` — the invite note (<180 chars, no link, no pitch); use the
+    **Signal-Handshake** or **Silent Invite** framework.
+  - `DIRECT_MESSAGE` — post-accept DM (send 24-72h after connecting, never same-day);
+    use **Earned Opener** / **Value Drop**.
+  - `INMAIL_MESSAGE` — paid InMail (Premium Business / Sales Navigator only, ≤1900 chars).
+  - `followup_after` is the same `{range,value}` as email. LinkedIn platform caps
+    bite (connection-request-WITH-note = 5/mo Free, 30/day Premium Business; DMs
+    50/day; visits 80/day) — pace accordingly.
+- **LinkedIn-ONLY campaigns are allowed:** 1-16 steps, all `LINKEDIN`, no `EMAIL`.
+  `email_account_ids` is NOT required when there's no EMAIL step, and the
+  email-compliance settings (gdpr/list_unsubscribe/open_disabled_list) don't apply
+  (the validator skips them for LinkedIn-only). You DO need a connected, warmed
+  LinkedIn seat (`body.linkedin_account_id`).
+- **Multichannel + branching:** a sequence may interleave EMAIL and LINKEDIN
+  steps (the 2607 campaign does: email opener → profile visit → email → connection
+  request → email follow-ups). Woodpecker's conditional steps are **limited** —
+  a step can gate on *opened a previous email*, *clicked a link*, *has a snippet*,
+  or (LinkedIn) *connection accepted* (accepted → `DIRECT_MESSAGE`); there is **no
+  "replied to email N" condition** (verified). Replies are handled by the webhook →
+  BD-takeover path. Keep sequences linear unless a supported condition adds value.
 - **Merge fields (each wet-verified against the create validator 2026-07-03):**
   `{{FIRST_NAME}}`, `{{LAST_NAME}}`, `{{COMPANY}}`, `{{TITLE}}`, `{{CITY}}`,
   `{{COUNTRY}}`, `{{INDUSTRY}}`, `{{PHONE}}`, `{{EMAIL}}` and
@@ -226,9 +308,15 @@ validate with `campaigns get` before adding prospects.
 The CLI wraps create/get/list/run/pause/stop/delete; the rest is `raw`/`wp.py`
 (full list in `references/api-reference.md`):
 
-- **Edit a running campaign:** `POST /v2/campaigns/{id}/editable` to unlock, then
-  `POST /v2/campaigns/{id}/steps` (add), `PATCH …/steps/{stepId}` /
-  `…/steps/{stepId}/versions/{verId}` (edit), `DELETE …/steps/{stepId}`.
+- **Edit a running campaign:** `POST /v2/campaigns/{id}/make_editable` (no body;
+  RUNNING/PAUSED → status `EDITED`), then `POST /v2/campaigns/{id}/steps`
+  (add: body `{parent_id, step:{type, followup_after, delivery_time?, body}}` —
+  `parent_id` = the current LAST step's id, which must have no already-processed
+  prospects; add EMAIL or LINKEDIN steps), `PATCH …/steps/{stepId}` /
+  `…/steps/{stepId}/versions/{verId}` (edit), `DELETE …/steps/{stepId}`; then
+  re-run to resume. A **DRAFT** is already editable — skip `make_editable`, just
+  `POST /steps`. Docs: developers.woodpecker.co/docs/campaigns/POST-add-step,
+  /POST-editable-campaign.
 - **Settings:** `PATCH /v2/campaigns/{id}` (name, timezone, daily_enroll, mailboxes).
 - **Bounce-shield** (auto-pause when bounce rate is too high):
   `GET/PUT/DELETE /v2/campaigns/{id}/bounce_shield/threshold`, body
@@ -254,7 +342,7 @@ website, industry, address, city, state, country, tags, snippet1..15`.
 drops it; a prospect's timezone must drive the CAMPAIGN `settings.timezone`
 (send windows) instead. Upserts touch ONLY the keys you send: omit a field to
 leave it alone; send `""` to clear it (so never send empty firmographics —
-you would blank UI-entered data — but DO send all six snippet slots when
+you would blank UI-entered data — but DO send all 15 snippet slots when
 re-personalizing). `add_prospects_list` returns the prospect ids:
 `{"prospects":[{"email","id"}]}`.
 
