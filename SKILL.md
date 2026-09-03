@@ -228,21 +228,47 @@ Verified body shape:
     // MANDATORY — disable OPEN tracking (no tracking pixel). The catch-all
     // "OTHER_PROVIDER" entry covers every provider not named, so all three
     // together = opens fully disabled for everyone.
+    // THIS IS ONLY HALF THE CONTROL — see track_opens on each version below.
     "open_disabled_list": ["google.com", "outlook.com", "OTHER_PROVIDER"],
     "count_followup_delay_in_working_days": false
   }
   ```
 
   Rationale (Romeo, non-negotiable): opens OFF = no pixel (privacy + deliverability);
-  `gdpr_unsubscribe` + `list_unsubscribe` always on. Link-click tracking is a
-  separate toggle — leave it default unless told otherwise; the pixel is the one
-  that must be off.
+  `gdpr_unsubscribe` + `list_unsubscribe` always on.
+
+  **TWO SWITCHES CONTROL THE PIXEL AND BOTH MUST BE OFF (2026-09-03).**
+  `settings.open_disabled_list` is only half of it: every EMAIL step VERSION
+  carries its own **`track_opens`, which Woodpecker defaults to `true` on
+  create**. Set `"track_opens": false` on every version explicitly — omitting it
+  ships the pixel enabled no matter what the disabled-list says. This was live:
+  campaigns 1585830-33 and 1592744 sat with `open_disabled_list: []` AND
+  `track_opens: true` on 9 versions, and `validate_campaign.py` (which then
+  checked only the list) passed them. Both switches are now enforced by that
+  validator, and an ABSENT `track_opens` fails closed.
+
+  Changing it on an existing campaign takes two different calls:
+  `PATCH /rest/v2/campaigns/{cid}` for `settings.open_disabled_list`, and
+  `PATCH /rest/v2/campaigns/{cid}/steps/{sid}/versions/{vid}` with
+  `{"track_opens": false}` for each version. A full-body PATCH of `steps` is
+  rejected (400); partial settings PATCH works.
+
+  **Click/link tracking: Romeo's rule is OFF, but the API exposes no switch.**
+  Probed live 2026-09-03 at both the campaign-settings and the step-version
+  endpoint, with a known-good key as the control (`track_opens` -> 200): every
+  candidate (`track_clicks`, `track_links`, `click_tracking`, `link_tracking`,
+  `track_link_clicks`, `clicks`, `disable_link_tracking`, `click_disabled_list`)
+  returns HTTP 400. A version object has exactly one tracking field,
+  `track_opens`. So click tracking cannot be asserted or verified through the
+  API — if Woodpecker rewrites links, it must be turned off in the UI, and no
+  automated check here can prove it either way. Do not claim clicks are off on
+  the strength of code.
 
 - `steps` — a node with `type:"START"` whose `followup` is step 1; each step:
   `type:"EMAIL"` (or `type:"LINKEDIN"` for a multichannel touch),
   `followup_after:{range:"DAY",value:N}` (**N must be > 0, even step 1**),
   `delivery_time:{WEEKDAY:[{from,to}]}`, `body:{versions:[{version:"A",subject,
-message(HTML),signature:"NO_SIGNATURE"}]}`, chained via `followup` (last = `null`).
+message(HTML),signature:"NO_SIGNATURE",track_opens:false}]}`, chained via `followup` (last = `null`).
   - **SUBJECT threading (MANDATORY):** ONLY the first EMAIL step carries a
     `subject`; **every follow-up EMAIL step MUST have `subject: null` (blank)** so
     Woodpecker sends it as a reply IN THE SAME THREAD (not a fresh subject / new
