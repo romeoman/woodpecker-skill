@@ -22,16 +22,8 @@ import os, sys, json, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from wp import wp  # noqa: E402
 
-# All allowed/subscribable events. Originally verified live 2026-06-27 (21
-# events); the live subscription list and the developers.woodpecker.co docs
-# carry 25 — finding deployment-and-test-integrity-10 (SDR-autopilot review,
-# 2026-09-02) found this coded list missing exactly the 4 events added below.
-# Two of the four ARE the liveness alarms the autopilot review asked for: a
-# LinkedIn account disconnect silently stops the DE/AT LinkedIn-only
-# campaign, and a Bounce Shield pause silently stops email — see
-# config/webhooks.yaml's woodpecker_loud_alert_events (outreach-engine/
-# webhook_receiver.py routes those two to a forced, visually distinct
-# CRITICAL Discord alert, bypassing the normal quiet-list).
+# All allowed/subscribable events — EXACTLY what the API returns from
+# `GET webhooks events` (verified live 2026-06-27). Keep in sync with that list.
 EVENTS = [
     "campaign_completed", "campaign_sent", "followup_after_autoreply",
     "linkedin_automation_connection_request_accepted", "prospect_autoreplied",
@@ -40,11 +32,6 @@ EVENTS = [
     "prospect_non_responsive", "prospect_not_interested", "email_opened",
     "prospect_opt_out", "prospect_replied", "prospect_saved", "secondary_replied",
     "task_created", "task_done", "task_ignored",
-    # Added 2026-09-02 (finding deployment-and-test-integrity-10):
-    "campaign_paused_by_bounce_shield",           # LOUD alert (email programme)
-    "linkedin_automation_account_connected",
-    "linkedin_automation_account_disconnected",   # LOUD alert (LinkedIn programme)
-    "linkedin_automation_direct_message_sent",
 ]
 
 # The events worth routing for prospecting (replies/interest → team + EA;
@@ -54,11 +41,6 @@ PROSPECTING_SET = [
     "prospect_maybe_later", "prospect_not_interested", "prospect_autoreplied",
     "prospect_opt_out", "prospect_bounced", "prospect_invalid",
     "prospect_blacklisted", "task_created",
-    # Added 2026-09-02: the two LOUD-alert deliverability/account-status
-    # events (see EVENTS comment above) plus their non-loud siblings, so a
-    # future `setup` re-run (idempotent bulk-subscribe) never drops them.
-    "campaign_paused_by_bounce_shield", "linkedin_automation_account_connected",
-    "linkedin_automation_account_disconnected", "linkedin_automation_direct_message_sent",
 ]
 
 def list_webhooks():

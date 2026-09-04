@@ -228,47 +228,19 @@ Verified body shape:
     // MANDATORY — disable OPEN tracking (no tracking pixel). The catch-all
     // "OTHER_PROVIDER" entry covers every provider not named, so all three
     // together = opens fully disabled for everyone.
-    // THIS IS ONLY HALF THE CONTROL — see track_opens on each version below.
     "open_disabled_list": ["google.com", "outlook.com", "OTHER_PROVIDER"],
     "count_followup_delay_in_working_days": false
   }
   ```
-
   Rationale (Romeo, non-negotiable): opens OFF = no pixel (privacy + deliverability);
-  `gdpr_unsubscribe` + `list_unsubscribe` always on.
-
-  **TWO SWITCHES CONTROL THE PIXEL AND BOTH MUST BE OFF (2026-09-03).**
-  `settings.open_disabled_list` is only half of it: every EMAIL step VERSION
-  carries its own **`track_opens`, which Woodpecker defaults to `true` on
-  create**. Set `"track_opens": false` on every version explicitly — omitting it
-  ships the pixel enabled no matter what the disabled-list says. This was live:
-  campaigns 1585830-33 and 1592744 sat with `open_disabled_list: []` AND
-  `track_opens: true` on 9 versions, and `validate_campaign.py` (which then
-  checked only the list) passed them. Both switches are now enforced by that
-  validator, and an ABSENT `track_opens` fails closed.
-
-  Changing it on an existing campaign takes two different calls:
-  `PATCH /rest/v2/campaigns/{cid}` for `settings.open_disabled_list`, and
-  `PATCH /rest/v2/campaigns/{cid}/steps/{sid}/versions/{vid}` with
-  `{"track_opens": false}` for each version. A full-body PATCH of `steps` is
-  rejected (400); partial settings PATCH works.
-
-  **Click/link tracking: Romeo's rule is OFF, but the API exposes no switch.**
-  Probed live 2026-09-03 at both the campaign-settings and the step-version
-  endpoint, with a known-good key as the control (`track_opens` -> 200): every
-  candidate (`track_clicks`, `track_links`, `click_tracking`, `link_tracking`,
-  `track_link_clicks`, `clicks`, `disable_link_tracking`, `click_disabled_list`)
-  returns HTTP 400. A version object has exactly one tracking field,
-  `track_opens`. So click tracking cannot be asserted or verified through the
-  API — if Woodpecker rewrites links, it must be turned off in the UI, and no
-  automated check here can prove it either way. Do not claim clicks are off on
-  the strength of code.
-
+  `gdpr_unsubscribe` + `list_unsubscribe` always on. Link-click tracking is a
+  separate toggle — leave it default unless told otherwise; the pixel is the one
+  that must be off.
 - `steps` — a node with `type:"START"` whose `followup` is step 1; each step:
   `type:"EMAIL"` (or `type:"LINKEDIN"` for a multichannel touch),
   `followup_after:{range:"DAY",value:N}` (**N must be > 0, even step 1**),
   `delivery_time:{WEEKDAY:[{from,to}]}`, `body:{versions:[{version:"A",subject,
-message(HTML),signature:"NO_SIGNATURE",track_opens:false}]}`, chained via `followup` (last = `null`).
+message(HTML),signature:"NO_SIGNATURE"}]}`, chained via `followup` (last = `null`).
   - **SUBJECT threading (MANDATORY):** ONLY the first EMAIL step carries a
     `subject`; **every follow-up EMAIL step MUST have `subject: null` (blank)** so
     Woodpecker sends it as a reply IN THE SAME THREAD (not a fresh subject / new
@@ -303,8 +275,8 @@ message(HTML),signature:"NO_SIGNATURE",track_opens:false}]}`, chained via `follo
 - **Multichannel + branching:** a sequence may interleave EMAIL and LINKEDIN
   steps (the 2607 campaign does: email opener → profile visit → email → connection
   request → email follow-ups). Woodpecker's conditional steps are **limited** —
-  a step can gate on _opened a previous email_, _clicked a link_, _has a snippet_,
-  or (LinkedIn) _connection accepted_ (accepted → `DIRECT_MESSAGE`); there is **no
+  a step can gate on *opened a previous email*, *clicked a link*, *has a snippet*,
+  or (LinkedIn) *connection accepted* (accepted → `DIRECT_MESSAGE`); there is **no
   "replied to email N" condition** (verified). Replies are handled by the webhook →
   BD-takeover path. Keep sequences linear unless a supported condition adds value.
 - **Merge fields (each wet-verified against the create validator 2026-07-03):**
@@ -431,42 +403,24 @@ woodpecker webhooks unsubscribe --event prospect_replied --target-url https://<e
 
 **Allowed events** (verified live) and what they mean:
 
-| Event                                             | Meaning                               | Route to                                                            |
-| ------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
-| `prospect_replied`                                | a prospect replied                    | **BD + executive assistant (high priority)**                        |
-| `prospect_interested`                             | reply classified as interested        | **BD + EA — hot lead, act now**                                     |
-| `prospect_maybe_later`                            | interested but later                  | BD — nurture / snooze                                               |
-| `prospect_not_interested`                         | reply classified not interested       | BD — close out, suppress                                            |
-| `prospect_autoreplied`                            | auto-reply (OOO etc.)                 | BD — pause follow-up                                                |
-| `followup_after_autoreply`                        | follow-up resumed after auto-reply    | log                                                                 |
-| `secondary_replied`                               | a second/later reply detected         | **BD + EA**                                                         |
-| `prospect_opt_out`                                | unsubscribe / opt-out                 | **delete + blacklist (do-not-contact)**                             |
-| `prospect_blacklisted`                            | prospect was blacklisted              | log suppression                                                     |
-| `prospect_bounced` / `prospect_invalid`           | bounce / invalid address              | suppress, fix list hygiene                                          |
-| `email_opened` / `link_clicked`                   | open / click (if tracked)             | engagement signal                                                   |
-| `prospect_non_responsive`                         | no reply after sequence               | BD — recycle / re-angle                                             |
-| `campaign_sent` / `campaign_completed`            | send / campaign finished              | reporting                                                           |
-| `prospect_saved`                                  | prospect saved                        | log                                                                 |
-| `task_created` / `task_done` / `task_ignored`     | manual task lifecycle                 | EA — task tracking                                                  |
-| `linkedin_automation_connection_request_accepted` | LinkedIn connect accepted             | BD                                                                  |
-| `linkedin_automation_account_connected`           | LinkedIn automation account connected | log                                                                 |
-| `linkedin_automation_account_disconnected`        | LinkedIn automation account dropped   | **🚨 LOUD alert — silently stops the DE/AT LinkedIn-only campaign** |
-| `linkedin_automation_direct_message_sent`         | LinkedIn DM sent by the automation    | log                                                                 |
-| `campaign_paused_by_bounce_shield`                | Bounce Shield auto-paused a campaign  | **🚨 LOUD alert — silently stops email**                            |
-
-Added 2026-09-02 (finding deployment-and-test-integrity-10 — the coded
-`EVENTS` list was missing these 4 of 25 live-subscribable events). The two
-marked LOUD route through `outreach-engine/webhook_receiver.py`'s
-`woodpecker_loud_alert_events` (config: `config/webhooks.yaml`): always
-notify (never quiet-listed), a visually distinct 🚨 CRITICAL Discord message
-in a dedicated thread, and an ERROR-level (not WARNING) log line if no
-Discord channel is configured — silence on either of these means a live
-campaign stopped and nobody found out.
-
-`prospect_replied`'s email body (the `email.message` field) also lands in
-the shared inbound-reply store (`outreach-engine/inbound_reply_store.py`) —
-the durable JSONL substrate the shared reply classifier and inbox watchers
-read from, alongside LinkUp's `message_received` events.
+| Event                                             | Meaning                            | Route to                                     |
+| ------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| `prospect_replied`                                | a prospect replied                 | **BD + executive assistant (high priority)** |
+| `prospect_interested`                             | reply classified as interested     | **BD + EA — hot lead, act now**              |
+| `prospect_maybe_later`                            | interested but later               | BD — nurture / snooze                        |
+| `prospect_not_interested`                         | reply classified not interested    | BD — close out, suppress                     |
+| `prospect_autoreplied`                            | auto-reply (OOO etc.)              | BD — pause follow-up                         |
+| `followup_after_autoreply`                        | follow-up resumed after auto-reply | log                                          |
+| `secondary_replied`                               | a second/later reply detected      | **BD + EA**                                  |
+| `prospect_opt_out`                                | unsubscribe / opt-out              | **delete + blacklist (do-not-contact)**      |
+| `prospect_blacklisted`                            | prospect was blacklisted           | log suppression                              |
+| `prospect_bounced` / `prospect_invalid`           | bounce / invalid address           | suppress, fix list hygiene                   |
+| `email_opened` / `link_clicked`                   | open / click (if tracked)          | engagement signal                            |
+| `prospect_non_responsive`                         | no reply after sequence            | BD — recycle / re-angle                      |
+| `campaign_sent` / `campaign_completed`            | send / campaign finished           | reporting                                    |
+| `prospect_saved`                                  | prospect saved                     | log                                          |
+| `task_created` / `task_done` / `task_ignored`     | manual task lifecycle              | EA — task tracking                           |
+| `linkedin_automation_connection_request_accepted` | LinkedIn connect accepted          | BD                                           |
 
 **The non-negotiable routing:** `prospect_replied`, `prospect_interested`, and
 `secondary_replied` are the ones that drive revenue — they must notify the team
